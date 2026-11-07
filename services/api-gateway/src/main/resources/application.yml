@@ -19,7 +19,7 @@ spring:
               # customer-service.url property / CUSTOMER_SERVICE_URL environment variable).
               # The gateway has no idea how many instances exist: that is the pain point
               # that Eureka solves in step-03-discovery (uri: lb://customer-service).
-              uri: ${customer-service.url:http://localhost:8081}
+              uri: ${customer-service.url:lb://customer-service}
 
               # PREDICATES = the conditions that decide whether an incoming request matches
               # this route. If several predicates are listed, ALL of them must be true (AND).
@@ -50,3 +50,8 @@ management:
       exposure:
         # "gateway" exposes /actuator/gateway/routes to list the routes the gateway knows
         include: health,info,gateway
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
