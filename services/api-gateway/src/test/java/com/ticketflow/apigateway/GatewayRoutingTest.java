@@ -21,10 +21,12 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * Starts the gateway on a random port and a tiny stub HTTP server standing in for
- * customer-service, so the routing can be tested without running the real service.
+ * Starts the gateway on a random port and supplies a local discovery instance
+ * backed by a tiny stub HTTP server, so Eureka need not be running for this test.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "spring.config.location=classpath:/application-test.properties")
 class GatewayRoutingTest {
 
     private static final AtomicReference<String> lastBackendPath = new AtomicReference<>();
@@ -51,7 +53,9 @@ class GatewayRoutingTest {
 
     @DynamicPropertySource
     static void backendUrl(DynamicPropertyRegistry registry) {
-        registry.add("customer-service.url", () -> "http://127.0.0.1:" + backend.getAddress().getPort());
+        registry.add("eureka.client.enabled", () -> false);
+        registry.add("spring.cloud.discovery.client.simple.instances.customer-service[0].uri",
+                () -> "http://127.0.0.1:" + backend.getAddress().getPort());
     }
 
     @AfterAll
@@ -78,6 +82,11 @@ class GatewayRoutingTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("Sara");
         assertThat(lastBackendPath.get()).isEqualTo("/api/customers/1");
+    }
+
+    @Test
+    void discoveryLocatorDoesNotExposeServicePrefix() throws Exception {
+        assertThat(get("/customer-service/api/customers").statusCode()).isEqualTo(404);
     }
 
     @Test
