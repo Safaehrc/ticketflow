@@ -29,6 +29,11 @@ spring:
               predicates:
                 - Path=/api/v1/events/**
 
+            - id: booking-service
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/v1/bookings/**
+
 management:
   endpoints:
     web:
