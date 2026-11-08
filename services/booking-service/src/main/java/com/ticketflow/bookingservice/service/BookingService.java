@@ -12,7 +12,8 @@ import feign.FeignException;
 import java.time.Duration;
 import java.time.Instant;
 import org.springframework.stereotype.Service;
-
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import org.springframework.cloud.client.circuitbreaker.NoFallbackAvailableException;
 @Service
 public class BookingService {
 
@@ -40,12 +41,16 @@ public class BookingService {
     private EventResponse fetchEvent(Long eventId) {
         try {
             return eventClient.getById(eventId);
-        } catch (FeignException.NotFound ex) {
-            // Inexistant ou brouillon : même réponse (404), jamais transformée en succès
-            throw new EventNotFoundException(eventId);
-        } catch (FeignException ex) {
-            // Service arrêté, délai dépassé, erreur 5xx...
-            throw new EventServiceUnavailableException(ex);
+        } catch (FeignException | CallNotPermittedException | NoFallbackAvailableException ex) {
+            // Le breaker peut envelopper l'exception d'origine : on la retrouve
+            Throwable cause = (ex instanceof NoFallbackAvailableException && ex.getCause() != null)
+                    ? ex.getCause() : ex;
+            if (cause instanceof FeignException.NotFound) {
+                // Inexistant ou brouillon : réponse métier, jamais un succès
+                throw new EventNotFoundException(eventId);
+            }
+            // Connexion refusée, délai dépassé, 5xx, circuit ouvert : 503
+            throw new EventServiceUnavailableException(cause);
         }
     }
 }
