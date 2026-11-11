@@ -6,4 +6,12 @@ import jakarta.validation.constraints.NotNull;
 
 public record BookingRequest(
         @NotNull Long eventId,
-        @Min(1) @Max(10) int quantity) { }
+        @Min(1) @Max(10) int quantity,
+        Long customerId,
+        Long ticketTierId,
+        String idempotencyKey) {
+
+    public BookingRequest(Long eventId, int quantity) {
+        this(eventId, quantity, null, null, null);
+    }
+}

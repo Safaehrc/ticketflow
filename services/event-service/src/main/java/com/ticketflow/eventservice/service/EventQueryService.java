@@ -63,16 +63,30 @@ public class EventQueryService {
         Event event = repo.findById(id)
                 .filter(e -> e.getStatus() == EventStatus.PUBLISHED)
                 .orElseThrow(() -> new EventNotFoundException(id));
+
+        var tiers = event.getTicketTiers().stream()
+                .map(t -> new TicketTierInfo(t.getId(), t.getName(), t.getPrice(), t.getCapacity(), t.getAvailableCapacity()))
+                .toList();
+
         return new EventDetail(event.getId(), event.getTitle(), event.getSummary(),
                 event.getDescription(), event.getStartsAt(), event.getEndsAt(),
                 event.getOrganizer(),
                 new VenueInfo(event.getVenue().getName(), event.getVenue().getCity(),
                         event.getVenue().getAddress(), event.getVenue().getCapacity()),
-                event.getCategory().getName());
+                event.getCategory().getName(),
+                tiers);
     }
 
     private EventSummary toSummary(Event e) {
+        java.math.BigDecimal startingPrice = e.getTicketTiers().stream()
+                .map(com.ticketflow.eventservice.entities.TicketTier::getPrice)
+                .min(java.math.BigDecimal::compareTo)
+                .orElse(null);
+        boolean available = e.getTicketTiers().isEmpty() ||
+                e.getTicketTiers().stream().anyMatch(t -> t.getAvailableCapacity() > 0);
+
         return new EventSummary(e.getId(), e.getTitle(), e.getSummary(), e.getStartsAt(),
-                e.getVenue().getCity(), e.getVenue().getName(), e.getCategory().getName());
+                e.getVenue().getCity(), e.getVenue().getName(), e.getCategory().getName(),
+                startingPrice, available);
     }
 }

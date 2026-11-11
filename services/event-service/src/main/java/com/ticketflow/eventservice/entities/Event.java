@@ -2,6 +2,8 @@ package com.ticketflow.eventservice.entities;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "events")
@@ -38,6 +40,9 @@ public class Event {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private Category category;
 
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TicketTier> ticketTiers = new ArrayList<>();
+
     protected Event() { }
 
     public Event(String title, String summary, String description, Instant startsAt,
@@ -64,4 +69,9 @@ public class Event {
     public EventStatus getStatus() { return status; }
     public Venue getVenue() { return venue; }
     public Category getCategory() { return category; }
+    public List<TicketTier> getTicketTiers() { return ticketTiers; }
+
+    public void addTicketTier(TicketTier tier) {
+        this.ticketTiers.add(tier);
+    }
 }

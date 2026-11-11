@@ -1,6 +1,7 @@
 package com.ticketflow.eventservice.controllers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -78,5 +79,24 @@ class EventControllerTest {
     void unknownEventIsNotFound() throws Exception {
         mockMvc.perform(get("/api/v1/events/{id}", 999999))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void reservesAndReleasesCapacity() throws Exception {
+        Long id = repo.findAll().stream()
+                .filter(e -> e.getStatus() == EventStatus.PUBLISHED)
+                .map(Event::getId).findFirst().orElseThrow();
+
+        // 1. Reserve 2 seats
+        mockMvc.perform(post("/api/v1/events/{id}/reserve-capacity", id)
+                        .param("quantity", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantity").value(2))
+                .andExpect(jsonPath("$.unitPrice").exists());
+
+        // 2. Reject excessive capacity (409 Conflict)
+        mockMvc.perform(post("/api/v1/events/{id}/reserve-capacity", id)
+                        .param("quantity", "999999"))
+                .andExpect(status().isConflict());
     }
 }

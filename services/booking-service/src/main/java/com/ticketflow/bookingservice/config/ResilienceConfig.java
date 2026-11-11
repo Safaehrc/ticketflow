@@ -24,9 +24,9 @@ public class ResilienceConfig {
                 .failureRateThreshold(p.failureRateThreshold())
                 .waitDurationInOpenState(p.waitInOpenState())
                 .permittedNumberOfCallsInHalfOpenState(p.permittedCallsInHalfOpenState())
-                // 404 et 400 sont des réponses normales d'un service en bonne santé :
+                // 404, 400 et 409 sont des réponses normales d'un service en bonne santé :
                 // ni échec, ni succès, ils ne font pas monter le taux d'échec
-                .ignoreExceptions(FeignException.NotFound.class, FeignException.BadRequest.class)
+                .ignoreExceptions(FeignException.NotFound.class, FeignException.BadRequest.class, FeignException.Conflict.class)
                 .enableAutomaticTransitionFromOpenToHalfOpen()
                 .build();
 
