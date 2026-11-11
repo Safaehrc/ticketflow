@@ -8,8 +8,8 @@ spring:
     config:
       server:
         git:
-          uri: ${CONFIG_GIT_URI:https://github.com/Safaehrc/ticketflow-config.git}
-          default-label: ${CONFIG_GIT_LABEL:main}
+          uri: ${CONFIG_GIT_URI:https://github.com/Safaehrc/ticketflow.git}
+          default-label: ${CONFIG_GIT_LABEL:config}
           # Clone au demarrage : une mauvaise URL echoue tout de suite, dans les logs
           clone-on-start: true
           force-pull: true
