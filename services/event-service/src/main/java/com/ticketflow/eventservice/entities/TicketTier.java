@@ -23,6 +23,7 @@ public class TicketTier {
 
     @Column(nullable = false)
     private int availableCapacity;
+    private int availableQuantity;
 
     @Version
     private Long version;
@@ -39,6 +40,7 @@ public class TicketTier {
         this.price = price;
         this.capacity = capacity;
         this.availableCapacity = capacity;
+        this.availableQuantity = capacity;
         this.event = event;
     }
 
@@ -65,5 +67,12 @@ public class TicketTier {
             throw new IllegalArgumentException("Quantity must be positive");
         }
         this.availableCapacity = Math.min(this.capacity, this.availableCapacity + quantity);
+    }
+    public int getAvailableQuantity() {
+        return this.availableQuantity;
+    }
+
+    public void setAvailableQuantity(int availableQuantity) {
+        this.availableQuantity = availableQuantity;
     }
 }
