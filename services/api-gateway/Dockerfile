@@ -1,7 +1,8 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 COPY . .
-RUN mvn -B -ntp -pl services/api-gateway -am package -DskipTests
+WORKDIR /workspace/services/api-gateway
+RUN mvn clean package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
