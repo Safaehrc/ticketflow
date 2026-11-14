@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # --- INFRASTRUCTURE KAFKA ---
   zookeeper:
@@ -140,8 +138,8 @@ services:
 
   payment-service:
     build:
-      context: ../services/payment-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/payment-service/Dockerfile
     container_name: payment-service
     ports:
       - "8085:8085"
@@ -154,7 +152,22 @@ services:
       - discovery-server
       - kafka
 
+  ticket-service:
+    build:
+      context: ../services/ticket-service
+      dockerfile: Dockerfile
+    container_name: ticket-service
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_CLOUD_DISCOVERY_ENABLED=true
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    depends_on:
+      - discovery-server
+      - kafka
+
 networks:
   default:
     name: ticketflow-net
-
