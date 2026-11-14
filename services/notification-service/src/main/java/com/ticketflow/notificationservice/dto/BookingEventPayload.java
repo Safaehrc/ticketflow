@@ -14,14 +14,14 @@ public record BookingEventPayload(
         String bookingReference,
         Long customerId,
         Long eventId,
-        String eventName,
-        Long tierId,
+        String eventTitle,
+        Long ticketTierId,
         String tierName,
         BigDecimal unitPrice,
-        BigDecimal totalAmount,
+        BigDecimal totalPrice,
         int quantity,
         String status,
         String idempotencyKey,
-        Instant bookedAt,
+        Instant createdAt,
         Instant expiresAt
 ) {}

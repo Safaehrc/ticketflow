@@ -7,6 +7,11 @@ spring:
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
   cloud:
+    # Reduce service-instance cache TTL so the gateway picks up newly registered
+    # instances faster (default is 35 s, which causes 503s during cold starts).
+    loadbalancer:
+      cache:
+        ttl: 5s
     gateway:
       server:
         webflux:
@@ -25,16 +30,50 @@ spring:
               # FILTERS = actions applied to the request and/or the response.
               filters:
                 - AddResponseHeader=X-Served-By, api-gateway
+                # Retry on 503 (no instance available yet) — safe for GET-only route.
+                - name: Retry
+                  args:
+                    retries: 3
+                    statuses: SERVICE_UNAVAILABLE
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 500ms
+                      factor: 2
 
             - id: event-service
               uri: lb://event-service
               predicates:
                 - Path=/api/v1/events/**
+              filters:
+                # Retry on 503 — safe for GET-only route.
+                - name: Retry
+                  args:
+                    retries: 3
+                    statuses: SERVICE_UNAVAILABLE
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 500ms
+                      factor: 2
 
             - id: booking-service
               uri: lb://booking-service
               predicates:
                 - Path=/api/v1/bookings/**
+              filters:
+                # Retry on 503 only — a 503 at gateway level means the backend was
+                # unreachable (request never reached booking-service), so POST is safe
+                # to retry here. Business errors (409, 422) are not retried.
+                - name: Retry
+                  args:
+                    retries: 3
+                    statuses: SERVICE_UNAVAILABLE
+                    methods: GET,POST
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 500ms
+                      factor: 2
 
 management:
   endpoints:

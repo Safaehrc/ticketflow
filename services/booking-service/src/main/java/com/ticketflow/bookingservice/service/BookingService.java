@@ -6,6 +6,7 @@ import com.ticketflow.bookingservice.clients.EventResponse;
 import com.ticketflow.bookingservice.dto.BookingRequest;
 import com.ticketflow.bookingservice.entities.Booking;
 import com.ticketflow.bookingservice.entities.BookingStatus;
+import com.ticketflow.bookingservice.events.BookingEventPublisher;
 import com.ticketflow.bookingservice.exceptions.BookingExpiredException;
 import com.ticketflow.bookingservice.exceptions.BookingNotFoundException;
 import com.ticketflow.bookingservice.exceptions.CapacityExceededException;
@@ -34,10 +35,12 @@ public class BookingService {
 
     private final EventClient eventClient;
     private final BookingRepo repo;
+    private final BookingEventPublisher eventPublisher;
 
-    public BookingService(EventClient eventClient, BookingRepo repo) {
+    public BookingService(EventClient eventClient, BookingRepo repo, BookingEventPublisher eventPublisher) {
         this.eventClient = eventClient;
         this.repo = repo;
+        this.eventPublisher = eventPublisher;
     }
 
     public Booking create(BookingRequest request) {
@@ -70,11 +73,10 @@ public class BookingService {
             }
         } catch (FeignException.Conflict ex) {
             throw new CapacityExceededException("Capacity exceeded for event: " + request.eventId());
-        } catch (FeignException.NotFound ex) {
-            // Le mock ou le service ne gère pas ce endpoint spécifique de réservation de capacité
-            log.warn("reserveCapacity endpoint not found, falling back to default tier metadata");
-        } catch (Exception ex) {
-            log.warn("Capacity reservation call error: {}", ex.getMessage());
+        } catch (FeignException | CallNotPermittedException | NoFallbackAvailableException ex) {
+            Throwable cause = (ex instanceof NoFallbackAvailableException && ex.getCause() != null)
+                    ? ex.getCause() : ex;
+            throw new EventServiceUnavailableException(cause);
         }
 
         BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(request.quantity()));
@@ -98,7 +100,9 @@ public class BookingService {
                 now.plus(HOLD_DURATION)
         );
 
-        return repo.save(booking);
+        Booking savedBooking = repo.save(booking);
+        eventPublisher.publishCreated(savedBooking);
+        return savedBooking;
     }
 
     public Booking getById(Long id) {
@@ -130,7 +134,9 @@ public class BookingService {
             throw new BookingExpiredException(id);
         }
         booking.confirm();
-        return repo.save(booking);
+        Booking savedBooking = repo.save(booking);
+        eventPublisher.publishConfirmed(savedBooking);
+        return savedBooking;
     }
 
     @Transactional
@@ -141,7 +147,9 @@ public class BookingService {
         }
         booking.cancel();
         safeReleaseCapacity(booking);
-        return repo.save(booking);
+        Booking savedBooking = repo.save(booking);
+        eventPublisher.publishCancelled(savedBooking);
+        return savedBooking;
     }
 
     @Scheduled(fixedRate = 30000)
@@ -154,6 +162,7 @@ public class BookingService {
             b.expire();
             safeReleaseCapacity(b);
             repo.save(b);
+            eventPublisher.publishExpired(b);
         }
         return expired.size();
     }
@@ -163,6 +172,7 @@ public class BookingService {
             booking.expire();
             safeReleaseCapacity(booking);
             repo.save(booking);
+            eventPublisher.publishExpired(booking);
         }
     }
 

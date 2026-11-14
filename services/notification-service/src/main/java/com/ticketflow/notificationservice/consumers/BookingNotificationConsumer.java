@@ -59,6 +59,9 @@ public class BookingNotificationConsumer {
         String eventType = extractString(rawEvent, "eventType");
         String aggregateId = extractString(rawEvent, "aggregateId");
 
+        log.info("Kafka event received: type={}, eventId={}, aggregateId={}",
+                eventType, eventId, aggregateId);
+
         if (eventId == null || eventType == null) {
             log.warn("Message Kafka invalide reçu : eventId ou eventType absent. Ignoré.");
             return;
@@ -138,17 +141,17 @@ public class BookingNotificationConsumer {
             case "BookingCreated" -> String.format(
                     "Votre réservation %s pour '%s' (catégorie %s, %d place(s)) a été créée. " +
                     "Montant total : %.2f €. Elle expire le %s.",
-                    aggregateId, payload.eventName(), payload.tierName(),
-                    payload.quantity(), payload.totalAmount(), payload.expiresAt());
+                    aggregateId, payload.eventTitle(), payload.tierName(),
+                    payload.quantity(), payload.totalPrice(), payload.expiresAt());
             case "BookingConfirmed" -> String.format(
                     "Votre réservation %s pour '%s' est confirmée. Bonne soirée !",
-                    aggregateId, payload.eventName());
+                    aggregateId, payload.eventTitle());
             case "BookingExpired" -> String.format(
                     "Votre réservation %s pour '%s' a expiré faute de paiement.",
-                    aggregateId, payload.eventName());
+                    aggregateId, payload.eventTitle());
             case "BookingCancelled" -> String.format(
                     "Votre réservation %s pour '%s' a été annulée. Remboursement en cours.",
-                    aggregateId, payload.eventName());
+                    aggregateId, payload.eventTitle());
             default -> "Événement " + eventType + " reçu pour la réservation " + aggregateId + ".";
         };
     }

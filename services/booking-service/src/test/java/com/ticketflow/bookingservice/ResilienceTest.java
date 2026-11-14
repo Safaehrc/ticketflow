@@ -3,6 +3,7 @@ package com.ticketflow.bookingservice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import com.ticketflow.bookingservice.events.BookingEventPublisher;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -22,6 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
@@ -39,6 +41,9 @@ class ResilienceTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    BookingEventPublisher eventPublisher;
 
     @DynamicPropertySource
     static void eventServiceUrl(DynamicPropertyRegistry registry) {

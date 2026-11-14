@@ -1,10 +1,12 @@
 package com.ticketflow.eventservice.service;
 
 import com.ticketflow.eventservice.dto.CapacityReservationResponse;
+import com.ticketflow.eventservice.entities.Event;
 import com.ticketflow.eventservice.entities.TicketTier;
+import com.ticketflow.eventservice.exceptions.CapacityExceededException;
+import com.ticketflow.eventservice.exceptions.TicketTierNotFoundException;
 import com.ticketflow.eventservice.repos.EventRepo;
 import com.ticketflow.eventservice.repos.TicketTierRepo;
-import com.ticketflow.eventservice.entities.Event;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,51 +21,59 @@ public class CapacityService {
         this.tierRepo = tierRepo;
     }
 
+    private TicketTier resolveTier(Event event, Long tierId) {
+        Long resolvedTierId = tierId;
+        if (resolvedTierId == null) {
+            final Long firstTierId = event.getTicketTiers()
+                    .stream()
+                    .findFirst()
+                    .map(TicketTier::getId)
+                    .orElseThrow(() -> new TicketTierNotFoundException(null));
+            resolvedTierId = firstTierId;
+        }
+
+        final Long targetTierId = resolvedTierId;
+        return tierRepo.findByIdLocked(targetTierId)
+                .orElseThrow(() -> new TicketTierNotFoundException(targetTierId));
+    }
+
     @Transactional
     public void release(Long eventId, Long tierId, int quantityToRelease) {
-        eventRepo.findById(eventId)
+        Event event = eventRepo.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 
-        TicketTier tier = tierRepo.findByIdLocked(tierId)
-                .orElseThrow(() -> new RuntimeException("Tier not found"));
-
-        int newAvailableCapacity = tier.getAvailableQuantity() + quantityToRelease;
-        tier.setAvailableQuantity(newAvailableCapacity);
-
+        TicketTier tier = resolveTier(event, tierId);
+        tier.release(quantityToRelease);
+        tier.setAvailableQuantity(tier.getAvailableCapacity());
         tierRepo.save(tier);
     }
 
     @Transactional
     public CapacityReservationResponse reserve(Long eventId, Long tierId, int quantityToReserve) {
-        // 1. Vérification et récupération de l'événement (assigné à une variable 'event')
         Event event = eventRepo.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with ID: " + eventId));
 
-        // 2. Verrouillage de la catégorie
-        TicketTier tier = tierRepo.findByIdLocked(tierId)
-                .orElseThrow(() -> new RuntimeException("Ticket tier not found with ID: " + tierId));
+        TicketTier tier = resolveTier(event, tierId);
 
-        // 3. Vérification du stock disponible
-        if (tier.getAvailableQuantity() < quantityToReserve) {
-            throw new RuntimeException("Not enough capacity available for this tier");
+        if (quantityToReserve <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        if (tier.getAvailableCapacity() < quantityToReserve) {
+            throw new CapacityExceededException("Not enough capacity available for this tier");
         }
 
-        // 4. Déduction et sauvegarde
-        int newAvailableCapacity = tier.getAvailableQuantity() - quantityToReserve;
-        tier.setAvailableQuantity(newAvailableCapacity);
+        tier.reserve(quantityToReserve);
+        tier.setAvailableQuantity(tier.getAvailableCapacity());
         tierRepo.save(tier);
 
-        // 5. Retour de l'objet complet attendu par le contrôleur
-        // NOTE : Vérifiez que les méthodes getTitle(), getName() et getPrice() correspondent bien
-        // aux noms dans vos entités Event et TicketTier.
         return new CapacityReservationResponse(
                 event.getId(),
-                event.getTitle(), // ou event.getName() selon votre entité
+                event.getTitle(),
                 tier.getId(),
                 tier.getName(),
-                tier.getPrice(),  // ou tier.getUnitPrice()
+                tier.getPrice(),
                 quantityToReserve,
-                newAvailableCapacity
+                tier.getAvailableCapacity()
         );
     }
 }
